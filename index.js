@@ -7,8 +7,10 @@ const
   app = express().use(bodyParser.json()); // creates express http server
 
 const request = require('request');
+require('dotenv').config()
 
-const PAGE_ACCESS_TOKEN = 'EAAHfb3jTOqcBAIwx8AGgIPSD1ezTcYxnlZC0sAwBT9xPkKDbxN6PG4yuYwnZBZAeNKZAZC182d3c9lfaFdqGWX5salHWejZCDPpRjoFLf56BNp1EYnS7GdcvOlzP0vOFm1dFeCKfHfkZBgGTcBXiLaVazynl9jZCrZBzXMGZALjU8FTQZDZD'
+const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN
+console.log('page_access_token -> ', PAGE_ACCESS_TOKEN)
 
 // Handles messages events
 function handleMessage(sender_psid, received_message) {
@@ -21,6 +23,35 @@ function handleMessage(sender_psid, received_message) {
     response = {
       "text": `You sent the message: "${received_message.text}". Now send me an image!`
     }
+  } else if (received_message.attachments) {
+
+    // Gets the URL of the message attachment
+    let attachment_url = received_message.attachments[0].payload.url;
+    response = {
+      "attachment": {
+        "type": "template",
+        "payload": {
+          "template_type": "generic",
+          "elements": [{
+            "title": "Is this the right picture?",
+            "subtitle": "Tap a button to answer.",
+            "image_url": attachment_url,
+            "buttons": [
+              {
+                "type": "postback",
+                "title": "Yes!",
+                "payload": "yes",
+              },
+              {
+                "type": "postback",
+                "title": "No!",
+                "payload": "no",
+              }
+            ],
+          }]
+        }
+      }
+    }
   }
 
   // Sends the response message
@@ -29,7 +60,19 @@ function handleMessage(sender_psid, received_message) {
 
 // Handles messaging_postbacks events
 function handlePostback(sender_psid, received_postback) {
+  let response;
+  
+  // Get the payload for the postback
+  let payload = received_postback.payload;
 
+  // Set the response based on the postback payload
+  if (payload === 'yes') {
+    response = { "text": "Thanks!" }
+  } else if (payload === 'no') {
+    response = { "text": "Oops, try sending another image." }
+  }
+  // Send the message to acknowledge the postback
+  callSendAPI(sender_psid, response);
 }
 
 // Sends response messages via the Send API
@@ -124,6 +167,6 @@ app.post('/webhook', (req, res) => {
   }
 
 });
-
+console.log('port -> ', process.env.PORT)
 // Sets server port and logs message on success
 app.listen(process.env.PORT || 1337, () => console.log('webhook is listening'));
